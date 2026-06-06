@@ -7,7 +7,9 @@ from config import BINANCE_KLINES_URL, DATA_FILE, INTERVAL, SYMBOL, TIMEZONE
 
 
 def fetch_latest_klines(limit=1000):
-    params = {"symbol": SYMBOL, "interval": INTERVAL, "limit": limit}
+    # Exclude the currently forming candle by capping at the start of the current minute.
+    end_ms = int(pd.Timestamp.now(tz="UTC").floor("1min").timestamp() * 1000) - 1
+    params = {"symbol": SYMBOL, "interval": INTERVAL, "limit": limit, "endTime": end_ms}
 
     response = requests.get(BINANCE_KLINES_URL, params=params, timeout=10)
     response.raise_for_status()

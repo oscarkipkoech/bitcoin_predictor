@@ -24,7 +24,9 @@ def floor_to_5_minute(dt):
 
 
 def fetch_recent_data(limit=300):
-    params = {"symbol": SYMBOL, "interval": INTERVAL, "limit": limit}
+    # Exclude the currently forming candle by capping at the start of the current minute.
+    end_ms = int(pd.Timestamp.now(tz="UTC").floor("1min").timestamp() * 1000) - 1
+    params = {"symbol": SYMBOL, "interval": INTERVAL, "limit": limit, "endTime": end_ms}
 
     response = requests.get(BINANCE_KLINES_URL, params=params, timeout=10)
     response.raise_for_status()
