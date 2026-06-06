@@ -23,10 +23,25 @@ def floor_to_5_minute(dt):
     return dt.replace(minute=minute, second=0, microsecond=0)
 
 
+def get_previous_completed_minute_end_ms():
+    now_utc = pd.Timestamp.now(tz="UTC")
+
+    current_minute_start = now_utc.floor("min")
+
+    previous_minute_end = current_minute_start - pd.Timedelta(milliseconds=1)
+
+    return int(previous_minute_end.timestamp() * 1000)
+
+
 def fetch_recent_data(limit=300):
-    # Exclude the currently forming candle by capping at the start of the current minute.
-    end_ms = int(pd.Timestamp.now(tz="UTC").floor("1min").timestamp() * 1000) - 1
-    params = {"symbol": SYMBOL, "interval": INTERVAL, "limit": limit, "endTime": end_ms}
+    end_time_ms = get_previous_completed_minute_end_ms()
+
+    params = {
+        "symbol": SYMBOL,
+        "interval": INTERVAL,
+        "limit": limit,
+        "endTime": end_time_ms,
+    }
 
     response = requests.get(BINANCE_KLINES_URL, params=params, timeout=10)
     response.raise_for_status()
@@ -106,7 +121,10 @@ def predict_once():
     df = add_features(raw_df)
 
     now = pd.Timestamp.now(tz=TIMEZONE)
-    base_time = floor_to_5_minute(now)
+
+    latest_available_time = df["open_time"].max()
+
+    base_time = floor_to_5_minute(latest_available_time)
     target_time = base_time + timedelta(minutes=5)
 
     base_row = df[df["open_time"] == base_time]
@@ -145,6 +163,7 @@ def predict_once():
 
     print("=" * 70)
     print(f"Current time: {now.strftime('%H:%M:%S')}")
+    print(f"Latest completed 1m candle: {latest_available_time.strftime('%H:%M')}")
     print(f"Price at {base_time.strftime('%H:%M')}: {base_price:.2f}")
     print(f"Target close time: {target_time.strftime('%H:%M')}")
     print(

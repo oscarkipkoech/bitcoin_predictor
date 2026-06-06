@@ -6,10 +6,25 @@ import requests
 from config import BINANCE_KLINES_URL, DATA_FILE, INTERVAL, SYMBOL, TIMEZONE
 
 
+def get_previous_completed_minute_end_ms():
+    now_utc = pd.Timestamp.now(tz="UTC")
+
+    current_minute_start = now_utc.floor("min")
+
+    previous_minute_end = current_minute_start - pd.Timedelta(milliseconds=1)
+
+    return int(previous_minute_end.timestamp() * 1000)
+
+
 def fetch_latest_klines(limit=1000):
-    # Exclude the currently forming candle by capping at the start of the current minute.
-    end_ms = int(pd.Timestamp.now(tz="UTC").floor("1min").timestamp() * 1000) - 1
-    params = {"symbol": SYMBOL, "interval": INTERVAL, "limit": limit, "endTime": end_ms}
+    end_time_ms = get_previous_completed_minute_end_ms()
+
+    params = {
+        "symbol": SYMBOL,
+        "interval": INTERVAL,
+        "limit": limit,
+        "endTime": end_time_ms,
+    }
 
     response = requests.get(BINANCE_KLINES_URL, params=params, timeout=10)
     response.raise_for_status()
